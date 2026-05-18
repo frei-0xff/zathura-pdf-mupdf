@@ -99,20 +99,33 @@ pdf_document_open(zathura_document_t* document)
                                       NULL);  /* no fallback override */
     /* -------------------------------------------------------- */
 
-    /* read user css from zathura/epub.css */
-    char* xdg_path = girara_get_xdg_path(XDG_CONFIG);
-    if (xdg_path != NULL) {
-      char* css_path  = g_build_filename(xdg_path, "zathura", "epub.css", NULL);
-      gchar* user_css = NULL;
-      if (g_file_get_contents(css_path, &user_css, NULL, NULL) == TRUE) {
-        fz_set_user_css(mupdf_document->ctx, user_css);
-        g_free(user_css);
-      } else {
-        const char *extra_css = "body {font-size: 0.95em;line-height: 1.4;}";
-        fz_set_user_css(mupdf_document->ctx, extra_css);
+    gchar* user_css = NULL;
+    gboolean css_loaded = FALSE;
+
+    /* Try <document_path>.css */
+    gchar* specific_css_path = g_strconcat(path, ".css", NULL);
+    if (g_file_get_contents(specific_css_path, &user_css, NULL, NULL) == TRUE) {
+      fz_set_user_css(mupdf_document->ctx, user_css);
+      g_free(user_css);
+      css_loaded = TRUE;
+    }
+    g_free(specific_css_path);
+
+    /* Fall back to global epub.css (or hardcoded default) */
+    if (!css_loaded) {
+      char* xdg_path = girara_get_xdg_path(XDG_CONFIG);
+      if (xdg_path != NULL) {
+        char* css_path = g_build_filename(xdg_path, "zathura", "epub.css", NULL);
+        if (g_file_get_contents(css_path, &user_css, NULL, NULL) == TRUE) {
+          fz_set_user_css(mupdf_document->ctx, user_css);
+          g_free(user_css);
+        } else {
+          const char *extra_css = "body {font-size: 0.95em;line-height: 1.4;}";
+          fz_set_user_css(mupdf_document->ctx, extra_css);
+        }
+        g_free(css_path);
+        g_free(xdg_path);
       }
-      g_free(css_path);
-      g_free(xdg_path);
     }
 
     mupdf_document->document = fz_open_document(mupdf_document->ctx, path);
