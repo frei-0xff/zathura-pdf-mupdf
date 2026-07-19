@@ -6,3 +6,4 @@ pdf.so
 compile_commands.json
 tags
 build/
+.cache
